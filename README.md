@@ -61,7 +61,7 @@ npm run build  # full production build + type-check of all pages
 - `docs/security.md` — data integrity, approvals, secrets
 - `docs/deployment.md` — Postgres migration & hosting
 - `docs/operations.md` — runbook (workers, cron, backups)
-- `docs/android-build.md` — Capacitor/Android APK (branded launcher icons, splash + Play Store icon generated in-repo)
+- `docs/android-build.md` — standalone offline-first Android app (full SPA bundled in the APK; optional server sync; branded launcher icons, splash + Play Store icon generated in-repo)
 
 ## License
 

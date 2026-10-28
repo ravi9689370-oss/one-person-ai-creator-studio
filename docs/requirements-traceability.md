@@ -139,9 +139,9 @@
 
 | ID | Requirement | Implementation | Evidence |
 |----|-------------|----------------|----------|
-| MO-1 | Android app via Capacitor shell to the web app | `capacitor.config.ts` (`com.creatorstudio.app`), `scripts/mobile/configure-capacitor.mjs` | [android-build.md](android-build.md) |
-| MO-2 | Emulator works with zero config; app never boots to a blank screen | default server `http://10.0.2.2:3000`; local bootstrap page (`public/index.html`) checks the server, auto-navigates when reachable, and shows a branded recovery screen with `adb reverse`/deploy guidance when unreachable | configure script + APK inspection |
-| MO-3 | APK produced in CI with full branding | `.github/workflows/android.yml` → artifact `creator-studio-debug-apk`; generated launcher set (adaptive vector + legacy density PNGs), splash assets, name `AI Creator Studio`; Play Store icon at `branding/play-store-icon-512.png` | artifacts + `MO-1` build |
+| MO-1 | Android app via Capacitor, standalone (no server needed) | `mobile-app/` SPA → `www/` (build-www.mjs) → `capacitor.config.ts` (`webDir: "www"`, no `server.url`), `appId com.creatorstudio.app` | [android-build.md](android-build.md) |
+| MO-2 | Offline-first: every page bundled; zero-config use; app never boots to a blank screen | full SPA bundled in APK (6 views, IndexedDB + localStorage fallback, error boundary + friendly 404/boot-failure cards); optional server sync in Settings with honest failure messages; 12 jsdom smoke tests render every route (`tests/mobile-spa.test.ts`) | test run + APK inspection |
+| MO-3 | APK produced in CI with full branding | `.github/workflows/android.yml` → build+verify `www/` → cap sync → artifact `creator-studio-debug-apk`; generated launcher set (adaptive vector + legacy density PNGs), splash assets, name `AI Creator Studio`; Play Store icon at `branding/play-store-icon-512.png` | artifacts + `MO-1` build |
 
 ## 13. Testing & CI
 
