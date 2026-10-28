@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-[#f6f7fb] text-slate-900 antialiased;
+  }
+  :root.dark body {
+    @apply bg-[#0b1020] text-slate-100;
+  }
+  a {
+    @apply underline-offset-2;
+  }
+}
+
+@layer utilities {
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-white shadow-card dark:border-[#232b4d] dark:bg-[#111830];
+  }
+  .skeleton {
+    @apply animate-shimmer bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 dark:from-[#182040] dark:via-[#20294d] dark:to-[#182040];
+    background-size: 800px 100%;
+  }
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent;
+  }
+}

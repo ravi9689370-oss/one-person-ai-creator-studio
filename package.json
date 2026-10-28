@@ -1,0 +1,69 @@
+{
+  "name": "one-person-ai-creator-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The One-Person AI Creator Studio - an AI-powered content production and monetization platform for solo creators.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "prisma generate && vitest run",
+    "test:watch": "prisma generate && vitest",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "seed": "tsx prisma/seed.ts",
+    "worker": "tsx scripts/worker.ts",
+    "scheduler": "tsx scripts/scheduler.ts",
+    "cap:sync": "node scripts/mobile/configure-capacitor.mjs && npx cap sync android",
+    "cap:add": "npx cap add android",
+    "cap:open": "npx cap open android",
+    "android:debug": "npm run build && npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "~5.22.0",
+    "@types/node-cron": "^3.0.11",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.453.0",
+    "next": "~14.2.15",
+    "next-auth": "^4.24.7",
+    "node-cron": "^3.0.3",
+    "react": "~18.3.1",
+    "react-dom": "~18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@testing-library/jest-dom": "^6.6.2",
+    "@testing-library/react": "^16.0.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.7.5",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "~14.2.15",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.47",
+    "prisma": "~5.22.0",
+    "tailwindcss": "~3.4.14",
+    "tsx": "^4.19.1",
+    "typescript": "~5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

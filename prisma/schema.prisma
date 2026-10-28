@@ -1,0 +1,1013 @@
+// The One-Person AI Creator Studio - Prisma schema
+//
+// Development/CI database: SQLite (zero-config, file-based).
+// Production target: PostgreSQL. See docs/deployment.md for the production
+// migration path. SCM status fields are strings validated by zod at the
+// service boundary (SQLite in this schema does not use SQL enums).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- identity
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  memberships   WorkspaceMember[]
+  seeded        Boolean   @default(false)
+
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("UTC")
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members   WorkspaceMember[]
+  brandProfiles BrandProfile[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("owner") // owner | admin | member
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+// ------------------------------------------------------------- brand / kb
+
+model BrandProfile {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  displayName String
+  tagline     String?
+  voice       String? // natural-language description of the creator voice
+  tone        String   @default("confident, friendly")
+  mission     String?
+  audience    String?
+  guidelines  String? // free-form creator-specific brand instructions
+  updatedAt   DateTime @updatedAt
+  personas    AudiencePersona[]
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("brand_profiles")
+}
+
+model AudiencePersona {
+  id             String   @id @default(cuid())
+  brandProfileId String
+  name           String
+  description    String?
+  painPoints     String?
+  goals          String?
+  createdAt      DateTime @default(now())
+  brandProfile   BrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+
+  @@map("audience_personas")
+}
+
+model StyleGuide {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  platform    String? // youtube | tiktok | ...
+  rules       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@map("style_guides")
+}
+
+model KnowledgeDocument {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  kind        String   @default("reference") // reference | voice_note | product | faq
+  content     String   @default("")
+  assetId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chunks      KnowledgeChunk[]
+
+  @@index([workspaceId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id          String   @id @default(cuid())
+  documentId  String
+  position    Int
+  content     String
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
+
+// ------------------------------------------------------------------ media
+
+model MediaFolder {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@map("media_folders")
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  workspaceId String
+  folderId    String?
+  kind        String    @default("file") // image | audio | video | document | file
+  title       String
+  path        String // storage URI (uploads/<workspace>/...)
+  mime        String?
+  sizeBytes   Int?
+  durationSec Float?
+  width       Int?
+  height      Int?
+  language    String?
+  meta        String? // JSON
+  source      String    @default("upload") // upload | generated | imported | transcribed
+  transcript  String?
+  visibility  String    @default("private")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, kind])
+  @@map("media_assets")
+}
+
+// --------------------------------------------------------------- calendar
+
+model ContentTopic {
+  id          String    @id @default(cuid())
+  workspaceId String
+  title       String
+  category    String?
+  notes       String?
+  status      String    @default("idea") // idea | researched | scripted | produced | published | archived
+  priority    String    @default("normal")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  scripts     Script[]
+
+  @@index([workspaceId, status])
+  @@map("content_topics")
+}
+
+model CalendarItem {
+  id          String    @id @default(cuid())
+  workspaceId String
+  topicId     String?
+  title       String
+  channel     String? // youtube | tiktok | instagram | ...
+  scheduledFor DateTime?
+  status      String    @default("planned") // planned | in_production | ready | published | cancelled
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, scheduledFor])
+  @@map("content_calendar_items")
+}
+
+// ---------------------------------------------------------------- scripts
+
+model Script {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  topicId          String?
+  title            String
+  format           String    @default("long_form") // long_form | short_form | outline | sponsor_read
+  platform         String    @default("youtube")
+  language         String    @default("en")
+  status           String    @default("draft") // draft | pending_approval | approved | rejected | needs_revision | archived
+  currentVersion   Int       @default(1)
+  hook             String?
+  cta              String?
+  sponsorName      String?
+  sponsorTerms     String?
+  createdById      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  topic            ContentTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  versions         ScriptVersion[]
+
+  @@index([workspaceId, status])
+  @@map("scripts")
+}
+
+model ScriptVersion {
+  id          String   @id @default(cuid())
+  scriptId    String
+  version     Int
+  body        String
+  tone        String?
+  targetMin   Int?
+  changeNote  String?
+  createdById String
+  createdAt   DateTime @default(now())
+  script      Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  voiceJobs   VoiceJob[]
+
+  @@unique([scriptId, version])
+  @@map("script_versions")
+}
+
+// ----------------------------------------------------------- production
+
+model ProductionProject {
+  id          String    @id @default(cuid())
+  workspaceId String
+  kind        String // voice | localization | video | thumbnail | repurpose
+  name        String
+  scriptId    String?
+  status      String    @default("active") // active | blocked | completed | cancelled
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, kind])
+  @@map("production_projects")
+}
+
+model VoiceJob {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  projectId       String?
+  scriptVersionId String?
+  provider        String    @default("mock-tts")
+  voiceId         String?
+  language        String    @default("en")
+  style           String?
+  status          String    @default("queued") // queued | running | waiting_for_approval | succeeded | failed | cancelled
+  outputAssetId   String?
+  error           String?
+  attempts        Int       @default(0)
+  idempotencyKey  String?   @unique
+  costCents       Int?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  scriptVersion   ScriptVersion? @relation(fields: [scriptVersionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@map("voice_jobs")
+}
+
+model TranscriptionJob {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  sourceAssetId  String
+  provider       String    @default("mock-asr")
+  language       String?
+  status         String    @default("queued") // queued | running | succeeded | failed | cancelled
+  text           String?
+  outputAssetId  String?
+  error          String?
+  attempts       Int       @default(0)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([workspaceId, status])
+  @@map("transcription_jobs")
+}
+
+// ------------------------------------------------------------ localization
+
+model LocalizationProject {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  name               String
+  sourceLanguage     String   @default("en")
+  sourceAssetId      String?
+  sourceScriptId     String?
+  status             String   @default("active")
+  playbackType       String   @default("audio") // audio | subtitles | lipsync(if provider supports)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  variants           LocalizationVariant[]
+
+  @@index([workspaceId])
+  @@map("localization_projects")
+}
+
+model LocalizationVariant {
+  id               String    @id @default(cuid())
+  projectId        String
+  language         String
+  status           String    @default("queued") // queued | translated | in_review | approved | dubbed | failed
+  translatedText   String?
+  translationJobId String?
+  dubJobId         String?
+  subtitleAssetId  String?
+  reviewNotes      String?
+  lipSyncAvailable Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  project          LocalizationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, language])
+  @@index([language])
+  @@map("localization_variants")
+}
+
+model TranslationGlossary {
+  id          String   @id @default(cuid())
+  workspaceId String
+  language    String
+  name        String   @default("Default glossary")
+  terms       String // JSON: [{source, target, note?}]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, language])
+  @@map("translation_glossaries")
+}
+
+// ------------------------------------------------------------------- video
+
+model VideoJob {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  projectId       String?
+  scriptVersionId String?
+  voiceJobId      String?
+  provider        String    @default("mock-video")
+  plan            String? // JSON: [{shot, assetId, durationSec}]
+  captionLanguage String?
+  status          String    @default("queued")
+  outputAssetId   String?
+  captionAssetId  String?
+  aspect          String    @default("16:9")
+  error           String?
+  attempts        Int       @default(0)
+  idempotencyKey  String?   @unique
+  costCents       Int?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([workspaceId, status])
+  @@map("video_jobs")
+}
+
+// --------------------------------------------------------------- thumbnails
+
+model Thumbnail {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  projectId    String?
+  videoJobId   String?
+  concept      String
+  textOverlay  String?
+  assetId      String?
+  provider     String    @default("mock-image")
+  status       String    @default("draft") // draft | generated | published | rejected
+  variantGroup String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@map("thumbnails")
+}
+
+model ThumbnailExperiment {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  variantAId  String
+  variantBId  String
+  status      String    @default("running") // running | completed | stopped
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  results     String? // JSON: per-variant impressions/CTR snapshots (real data only)
+  notes       String?
+
+  @@index([workspaceId])
+  @@map("thumbnail_experiments")
+}
+
+// -------------------------------------------------------------- repurposing
+
+model RepurposeJob {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  projectId         String?
+  sourceAssetId     String
+  targetClips       Int       @default(10)
+  targetDurationSec Int       @default(45)
+  aspect            String    @default("9:16")
+  language          String    @default("en")
+  status            String    @default("queued")
+  provider          String    @default("mock-clip")
+  error             String?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  clips             GeneratedClip[]
+
+  @@index([workspaceId, status])
+  @@map("repurpose_jobs")
+}
+
+model GeneratedClip {
+  id             String    @id @default(cuid())
+  repurposeJobId String
+  title          String
+  description    String?
+  aspect         String    @default("9:16")
+  startSec       Int
+  endSec         Int
+  assetId        String? // verified playable output asset
+  status         String    @default("candidate") // candidate | rendering | ready | verified | failed | rejected
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  job            RepurposeJob @relation(fields: [repurposeJobId], references: [id], onDelete: Cascade)
+
+  @@index([repurposeJobId])
+  @@map("generated_clips")
+}
+
+// ------------------------------------------------------------- distribution
+
+model SocialAccount {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  platform        String
+  handle          String?
+  status          String    @default("disconnected") // connected | awaiting_authorization | disconnected | error
+  scopes          String? // JSON array
+  capLimited      String?   // JSON: documented platform capability limits
+  lastVerifiedAt  DateTime?
+  lastError       String?
+  lastErrorAt     DateTime?
+  meta            String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([workspaceId, platform])
+  @@map("social_accounts")
+}
+
+model DistributionCampaign {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  goal        String?
+  status      String    @default("draft") // draft | active | completed | cancelled
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@map("distribution_campaigns")
+}
+
+model ScheduledPost {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  campaignId         String?
+  platform           String
+  title              String
+  caption            String?
+  hashtags           String?
+  assetIds           String? // JSON array of MediaAsset ids
+  metadata           String?   // platform-specific payload JSON
+  scheduledFor       DateTime?
+  status             String    @default("draft") // draft | pending_approval | approved | queued | published | failed | cancelled
+  approvalRequestId  String?
+  publishedPostId    String?
+  failureReason      String?
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([scheduledFor])
+  @@map("scheduled_posts")
+}
+
+model PublishedPost {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  scheduledPostId String?
+  platform        String
+  externalId      String    @default("") // provider post id when available
+  url             String?
+  caption         String?
+  status          String    @default("published") // published | removed | failed
+  publishedAt     DateTime  @default(now())
+  metricsSource   String    @default("none") // provider_api | manual | none
+  createdAt       DateTime  @default(now())
+  metrics         PostMetric[]
+
+  @@index([workspaceId, platform])
+  @@map("published_posts")
+}
+
+model PostMetric {
+  id              String    @id @default(cuid())
+  publishedPostId String
+  capturedAt      DateTime  @default(now())
+  views           Int?
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  watchTimeSec    Int?
+  ctr             Float?
+  source          String    @default("manual") // provider_api | manual | simulated
+  publishedPost   PublishedPost @relation(fields: [publishedPostId], references: [id], onDelete: Cascade)
+
+  @@index([publishedPostId])
+  @@map("post_metrics")
+}
+
+// ----------------------------------------------------------------- agents
+
+model Agent {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  key          String // "director" | "research" | ...
+  name         String
+  description  String?
+  capabilities String   @default("[]") // JSON array
+  status       String   @default("healthy") // healthy | degraded | disabled
+  lastRunAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([workspaceId, key])
+  @@map("agents")
+}
+
+model AgentTask {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  type                String // script.generate | voice.generate | ...
+  agentKey            String
+  status              String    @default("queued") // queued | running | waiting_for_approval | succeeded | failed | cancelled
+  inputRefs           String? // JSON
+  outputRefs          String? // JSON: verified output references
+  summary             String?
+  error               String?
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(3)
+  idempotencyKey      String?   @unique
+  approvalRequestId   String?
+  workflowExecutionId String?
+  isMock              Boolean   @default(false)
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([agentKey, status])
+  @@map("agent_tasks")
+}
+
+model WorkflowDefinition {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  description String?
+  definition  String // JSON: steps [{key, agentKey, needs[], approval?}]
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  executions  WorkflowExecution[]
+
+  @@unique([workspaceId, key])
+  @@map("workflow_definitions")
+}
+
+model WorkflowExecution {
+  id         String    @id @default(cuid())
+  workspaceId String
+  workflowId String
+  trigger    String    @default("manual") // manual | schedule | webhook | agent
+  status     String    @default("queued") // queued | running | waiting_for_approval | succeeded | failed | cancelled
+  input      String?
+  output     String?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  workflow   WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@map("workflow_executions")
+}
+
+// ------------------------------------------------------------- approvals
+
+model ApprovalRequest {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  objectType   String // script | voice | video | localization | thumbnail | post | sale | product
+  objectId     String
+  title        String
+  context      String? // JSON: preview data
+  requestedById String?
+  status       String    @default("pending") // pending | approved | rejected | changes_requested | cancelled
+  decidedById  String?
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([workspaceId, status, objectType])
+  @@map("approval_requests")
+}
+
+// ------------------------------------------------------------ AI Maya / CRM
+
+model Contact {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  name         String
+  email        String?
+  phone        String?
+  company      String?
+  type         String    @default("lead") // lead | customer | partner
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@map("contacts")
+}
+
+model Conversation {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  contactId    String?
+  channel      String   @default("web") // web | chat | phone | whatsapp | email
+  subject      String?
+  status       String   @default("open") // open | escalated | closed
+  intent       String?  // classify result
+  isEscalated  Boolean  @default(false)
+  escalationReason String?
+  handoffAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  messages     ConversationMessage[]
+
+  @@index([workspaceId, status])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // user | maya | creator | system
+  content        String
+  intent         String?
+  isMock         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_messages")
+}
+
+model Lead {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  contactId       String?
+  mayaConversationId String?
+  name            String
+  email           String?
+  source          String    @default("maya") // maya | manual | referral | social
+  intent          String?   // course | coaching | brand_deal | unknown
+  qualification   String    @default("new") // new | qualified | unqualified | high_value
+  stage           String    @default("new") // new | contacted | meeting | proposal | won | lost
+  estimatedValueCents Int?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  activities      CrmActivity[]
+  appointments    Appointment[]
+
+  @@index([workspaceId, stage])
+  @@map("leads")
+}
+
+model CrmActivity {
+  id          String   @id @default(cuid())
+  workspaceId String
+  leadId      String?
+  contactId   String?
+  type        String   @default("note") // note | call | email | meeting | stage_change | maya_reply
+  content     String
+  createdById String?
+  createdAt   DateTime @default(now())
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([leadId])
+  @@map("crm_activities")
+}
+
+model Appointment {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  leadId       String?
+  title        String
+  startsAt     DateTime
+  durationMin  Int       @default(30)
+  status       String    @default("scheduled") // scheduled | completed | cancelled | no_show
+  provider     String?   // cal | manual | maya
+  location     String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lead         Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, startsAt])
+  @@map("appointments")
+}
+
+// -------------------------------------------------------------- monetization
+
+model Product {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String   @unique
+  name        String
+  description String?
+  kind        String   @default("course") // course | coaching | brand_deal | subscription
+  priceCents  Int
+  currency    String   @default("USD")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+model Order {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  productId     String
+  contactId     String?
+  status        String    @default("pending") // pending | paid | failed | refunded | cancelled | awaiting_payment
+  amountCents   Int
+  currency      String    @default("USD")
+  provider      String    @default("manual") // stripe | manual | mock
+  providerRef   String?
+  verifiedByIdEvent String? // payment_events.id that verified this order as paid
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  events        PaymentEvent[]
+  invoices      Invoice[]
+
+  @@index([workspaceId, status])
+  @@map("orders")
+}
+
+model PaymentEvent {
+  id                String   @id @default(cuid())
+  workspaceId       String?
+  orderId           String?
+  provider          String
+  type              String // payment_intent.succeeded | ...
+  payload           String?  // sanitized payload JSON
+  signatureVerified Boolean  @default(false)
+  processed         Boolean  @default(false)
+  error             String?
+  receivedAt        DateTime @default(now())
+  order             Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@map("payment_events")
+}
+
+model Subscription {
+  id          String    @id @default(cuid())
+  workspaceId String
+  productId   String
+  contactId   String?
+  status      String    @default("active") // active | paused | cancelled | past_due
+  provider    String    @default("manual")
+  providerRef String?
+  amountCents Int
+  currency    String    @default("USD")
+  interval    String    @default("month")
+  startedAt   DateTime  @default(now())
+  currentPeriodEnd DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  workspaceId String
+  orderId     String   @unique
+  number      String
+  amountCents Int
+  currency    String   @default("USD")
+  status      String   @default("draft") // draft | issued | paid | void
+  issuedAt    DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model RevenueRecord {
+  id         String    @id @default(cuid())
+  workspaceId String
+  orderId    String?
+  source     String    @default("manual") // order | subscription | sponsorship | other
+  kind       String    @default("sale") // sale | refund | projection
+  amountCents Int
+  currency   String    @default("USD")
+  label      String?
+  occurredAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+
+  @@index([workspaceId, occurredAt])
+  @@map("revenue_records")
+}
+
+// ---------------------------------------------------------------- analytics
+
+model AnalyticsSnapshot {
+  id          String   @id @default(cuid())
+  workspaceId String
+  channel     String? // platform or "all"
+  scope       String   @default("content") // content | revenue | audience | languages
+  periodStart DateTime?
+  periodEnd   DateTime?
+  metrics     String // JSON
+  source      String   @default("derived") // provider_api | derived | manual | simulated
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, scope])
+  @@map("analytics_snapshots")
+}
+
+// ------------------------------------------------------- notifications etc.
+
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String?
+  type        String    @default("info") // info | approval | failure | lead | payment | report
+  title       String
+  body        String?
+  link        String?
+  readAt      DateTime?
+  deliveredExternal Boolean @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, type])
+  @@map("notifications")
+}
+
+model Integration {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  providerKey    String // anthropic | elevenlabs | stripe | youtube ...
+  category       String // ai | storage | social | payments | communications | media
+  status         String    @default("awaiting_credentials") // operational | configured | awaiting_credentials | awaiting_authorization | unsupported | mock | manual
+  capabilityNotes String?
+  capabilities   String    @default("[]") // JSON array
+  config         String?   // JSON: non-secret config (no credentials!)
+  lastSuccessAt  DateTime?
+  lastError      String?
+  lastErrorAt    DateTime?
+  isMock         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([workspaceId, providerKey])
+  @@map("integrations")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  actorId     String?
+  action      String
+  objectType  String
+  objectId    String?
+  meta        String?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@map("audit_logs")
+}
+
+model ScheduledReport {
+  id          String    @id @default(cuid())
+  workspaceId String
+  kind        String    @default("morning_brief")
+  hourLocal   Int       @default(7) // 7:00 AM in the workspace timezone
+  minuteLocal Int       @default(0)
+  timezone    String    @default("UTC")
+  channels    String    @default("[\"in_app\"]") // JSON: in_app | email | slack
+  enabled     Boolean   @default(true)
+  lastRunAt   DateTime?
+  lastRunForDate String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  reports     Report[]
+
+  @@unique([workspaceId, kind])
+  @@map("scheduled_reports")
+}
+
+model Report {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  scheduledReportId String?
+  kind              String    @default("morning_brief")
+  forDate           String // YYYY-MM-DD in the report timezone
+  timezone          String
+  status            String    @default("generated") // generated | delivered | failed
+  content           String // JSON sections
+  deliveredAt       DateTime?
+  isMock            Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  scheduledReport   ScheduledReport? @relation(fields: [scheduledReportId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, kind, forDate, timezone])
+  @@map("reports")
+}
+
+// Idempotency ledger for external side effects (publish, payments, provider jobs)
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  scope     String
+  resultRef String?
+  createdAt DateTime @default(now())
+
+  @@map("idempotency_keys")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model VoiceProfile {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  provider        String    @default("elevenlabs")
+  externalVoiceId String
+  name            String
+  language        String    @default("en")
+  purpose         String?   // narration | maya | ...
+  consentNote     String?   // authorization evidence note for voice assets
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@map("voice_profiles")
+}
