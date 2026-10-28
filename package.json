@@ -22,10 +22,12 @@
     "seed": "tsx prisma/seed.ts",
     "worker": "tsx scripts/worker.ts",
     "scheduler": "tsx scripts/scheduler.ts",
-    "cap:sync": "node scripts/mobile/configure-capacitor.mjs && npx cap sync android",
+    "cap:sync": "node scripts/mobile/configure-capacitor.mjs && node scripts/mobile/build-www.mjs && npx cap sync android",
     "cap:add": "npx cap add android",
     "cap:open": "npx cap open android",
-    "android:debug": "npm run build && npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "mobile:build": "node scripts/mobile/build-www.mjs",
+    "mobile:verify": "node scripts/mobile/build-www.mjs && test -f www/index.html && test -f www/assets/js/views/settings.js && echo 'www build verified'",
+    "android:debug": "npm run mobile:build && npm run cap:sync && cd android && ./gradlew assembleDebug",
     "postinstall": "prisma generate"
   },
   "prisma": {

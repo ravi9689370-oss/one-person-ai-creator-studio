@@ -24,6 +24,12 @@ prisma/dev.db
 # generated app config (see capacitor.config.ts + scripts/mobile/configure-capacitor.mjs)
 /capacitor.config.json
 
+# generated mobile web build (built from mobile-app/ by scripts/mobile/build-www.mjs)
+/www/
+
+# generated android web assets (copied by `cap sync` from www/)
+/android/app/src/main/assets/public/
+
 # testing
 /coverage
 

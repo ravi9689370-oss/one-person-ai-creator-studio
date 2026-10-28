@@ -5,7 +5,7 @@ on:
 
 jobs:
   apk:
-    name: Debug APK · Capacitor shell
+    name: Debug APK · offline-first SPA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,16 @@ jobs:
 
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Build offline-first web app (www)
+        run: |
+          npm run mobile:build
+          test -f www/index.html
+          test -f www/assets/css/app.css
+          for f in main store ui charts maya sync; do test -f "www/assets/js/$f.js"; done
+          for f in dashboard scripts maya publishing monetization settings; do test -f "www/assets/js/views/$f.js"; done
+          grep -q "assets/js/main.js" www/index.html
+          echo "www build verified: entry point + all modules present"
 
       - name: Configure Capacitor + sync native project
         run: npm run cap:sync

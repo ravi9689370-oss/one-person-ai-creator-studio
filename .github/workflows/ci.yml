@@ -28,6 +28,9 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npx tsc --noEmit
 
+      - name: Mobile web build (offline-first SPA)
+        run: npm run mobile:verify
+
       - name: Apply database migrations
         run: npx prisma migrate deploy
 
