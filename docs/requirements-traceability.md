@@ -140,7 +140,7 @@
 | ID | Requirement | Implementation | Evidence |
 |----|-------------|----------------|----------|
 | MO-1 | Android app via Capacitor shell to the web app | `capacitor.config.ts` (`com.creatorstudio.app`), `scripts/mobile/configure-capacitor.mjs` | [android-build.md](android-build.md) |
-| MO-2 | Emulator works with zero config | default server `http://10.0.2.2:3000` (cleartext loopback) | configure script |
+| MO-2 | Emulator works with zero config; app never boots to a blank screen | default server `http://10.0.2.2:3000`; local bootstrap page (`public/index.html`) checks the server, auto-navigates when reachable, and shows a branded recovery screen with `adb reverse`/deploy guidance when unreachable | configure script + APK inspection |
 | MO-3 | APK produced in CI with full branding | `.github/workflows/android.yml` → artifact `creator-studio-debug-apk`; generated launcher set (adaptive vector + legacy density PNGs), splash assets, name `AI Creator Studio`; Play Store icon at `branding/play-store-icon-512.png` | artifacts + `MO-1` build |
 
 ## 13. Testing & CI

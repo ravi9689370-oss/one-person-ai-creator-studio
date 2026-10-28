@@ -47,6 +47,16 @@ cd android && ./gradlew assembleDebug
 
 One-liner: `npm run android:debug` (build + cap:sync + assembleDebug).
 
+## How the app boots (no more white screens)
+
+The APK is a **local-first shell**: it boots an embedded branded page (`public/index.html`, built from `public/` via `webDir`), which:
+
+1. Fetches the configured server URL (injected at build time) with a 3.5s timeout.
+2. **Server reachable** → auto-navigates into the studio in the same WebView (full product: login → dashboard → all features).
+3. **Server unreachable** → branded recovery screen with the exact server URL, a **Retry now** button, and next-step guidance (dev server on/off, `adb reverse` for physical phones, `https://` for production).
+
+This is why a fresh install *never* shows a blank white page — even when no server is running yet. The manifest sets `android:usesCleartextTraffic="true"` and the runtime config uses `allowMixedContent` + `allowNavigation` so the bootstrap page can fetch http dev servers from the capacitor's asset origin. Production servers use `https:` and need none of this leniency.
+
 ## Pointing an emulator at your dev app
 
 ```bash
