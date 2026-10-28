@@ -17,7 +17,7 @@ const sessionUser = { id: "", email: "creator@example.com" };
 beforeAll(async () => {
   const creator = await prisma.user.findUnique({ where: { email: "creator@example.com" } });
   if (creator) sessionUser.id = creator.id;
-  const { getServerSession } = (await import("next-auth")) as { getServerSession: ReturnType<typeof vi.fn> };
+  const { getServerSession } = (await import("next-auth")) as unknown as { getServerSession: ReturnType<typeof vi.fn> };
   getServerSession.mockImplementation(async () => ({ user: sessionUser, expires: "2099-01-01T00:00:00.000Z" }));
 });
 
