@@ -24,7 +24,7 @@ try {
 
 const config: CapacitorConfig = {
   appId: "com.creatorstudio.app",
-  appName: "Creator Studio",
+  appName: "AI Creator Studio",
   webDir: "public", // shell app: static assets only; real content is served remotely
   server,
 };
