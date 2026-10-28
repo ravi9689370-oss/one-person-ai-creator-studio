@@ -3,30 +3,29 @@ import type { CapacitorConfig } from "@capacitor/cli";
 /**
  * Capacitor configuration for the Android shell.
  *
- * The Android app is a thin WebView client for the hosted web application -
- * it never ships business logic or secrets. The server URL is supplied at
- * build time via CREATOR_STUDIO_SERVER_URL (scripts/mobile/configure-capacitor
- * injects it and `cap sync android` writes it into the native assets).
+ * The app boots a LOCAL branded bootstrap page (public/index.html) which:
+ *  - fetches the studio server once per boot (URL injected at build time),
+ *  - auto-navigates into the web app when reachable,
+ *  - shows a branded, actionable screen (never a white page) when the server
+ *    is unreachable (real device before `adb reverse`, dev server off, etc.).
  *
- * App id: com.creatorstudio.app (stable across local and CI builds).
+ * The server URL lives in the bootstrap page — scripts/mobile/configure-
+ * capacitor.mjs rewrites its SERVER_URL assignment from
+ * CREATOR_STUDIO_SERVER_URL (default http://10.0.2.2:3000 for the emulator).
+ *
+ * allowNavigation permits in-WebView navigation to the studio origin;
+ * without it Capacitor would open the studio in the external browser.
  */
-const rawUrl = process.env.CREATOR_STUDIO_SERVER_URL ?? "http://10.0.2.2:3000";
-let server = { url: "http://10.0.2.2:3000", cleartext: true } as { url: string; cleartext?: boolean };
-try {
-  const parsed = new URL(rawUrl);
-  server = {
-    url: rawUrl,
-    ...(parsed.protocol === "https:" ? {} : { cleartext: true }),
-  };
-} catch {
-  // fall back to the Android-emulator loopback for production safety
-}
-
 const config: CapacitorConfig = {
   appId: "com.creatorstudio.app",
   appName: "AI Creator Studio",
-  webDir: "public", // shell app: static assets only; real content is served remotely
-  server,
+  webDir: "public", // local bootstrap; product UI is served by the studio server
+  android: {
+    allowMixedContent: true, // dev servers run on http (https in production)
+  },
+  server: {
+    allowNavigation: ["*"], // studio host injected via the bootstrap URL
+  },
 };
 
 export default config;
