@@ -4,7 +4,7 @@
  * opt-in and reports failures honestly (no silent no-ops).
  */
 
-import { getAll, getSetting, setSetting, clearAllStores, ensureSeeded, SEED_VERSION } from "../store.js";
+import { getAll, getSetting, setSetting, clearAllStores, ensureSeeded, SEED_VERSION, del } from "../store.js";
 import { h, card, chip, toast, confirmModal, downloadText, banner, money } from "../ui.js";
 import { applyTheme, navigate } from "../main.js";
 import { getSyncConfig, normalize, ping, login, sessionInfo, pullBrief, pushAllUnsynced } from "../sync.js";
@@ -51,8 +51,10 @@ export async function render() {
 
   async function checkStatus() {
     statusLine.textContent = "Status: checking…";
+    const saved = normalize(urlIn.value);
+    if (saved) await setSetting("serverUrl", saved);
+    else await del("kv", "serverUrl"); // field cleared → falls back to the build-time default URL
     const r = await ping(urlIn.value);
-    await setSetting("serverUrl", normalize(urlIn.value) || "");
     statusLine.textContent = `Status: ${r.ok ? `reachable ✓ (${r.serverUrl})` : r.reason}`;
     if (r.ok) {
       const s = await sessionInfo(r.serverUrl);
