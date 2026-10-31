@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <!--
+      AI Creator Studio launcher mark: amber lightning bolt + white sparks.
+      Geometry mirrors scripts/brand/generate-icons.mjs exactly (108-unit grid,
+      content drawn at SAFE_SCALE=0.62 inside the adaptive safe zone).
+    -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path
+            android:fillColor="#FBBF24"
+            android:fillType="nonZero"
+            android:pathData="M44,14 L74,14 L58,45 L73,45 L39,95 L49,58 L34,58 Z"
+            android:strokeColor="#00000000"
+            android:strokeWidth="1" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="nonZero"
+            android:pathData="M24,26 L31,33 L24,40 L17,33 Z"
+            android:strokeColor="#00000000"
+            android:strokeWidth="1" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="nonZero"
+            android:pathData="M80,68 L85,73 L80,78 L75,73 Z"
+            android:strokeColor="#00000000"
+            android:strokeWidth="1" />
+    </group>
+</vector>

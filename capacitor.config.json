@@ -1,0 +1,13 @@
+{
+  "appId": "com.creatorstudio.app",
+  "appName": "AI Creator Studio",
+  "webDir": "public",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "allowNavigation": [
+      "*"
+    ]
+  }
+}
